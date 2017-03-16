@@ -1,0 +1,7 @@
+{
+	"fromEmail": "crashreports@kajeka.com",
+	"reportEmail": "engineering@kajeka.com",
+	"baseUrl": "http://crashreports.kajeka.com/",
+	"minidumpExecutable": "breakpad/src/processor/minidump_stackwalk",
+	"symbolsDir": "symbols"
+}
