@@ -49,6 +49,8 @@ function decodeDmpFile($exe, $dmpFile, $symbolsDir)
 
 	$lines = explode(PHP_EOL,$text);
 	$id = 0;
+	$state = "";
+	$output = "";
 	foreach($lines as $line)
 	{
 		$pre = $nextpre;
@@ -106,13 +108,14 @@ try
 		gl TEXT,
 		time INTEGER,
 		ip TEXT,
-		file TEXT)");
+		file TEXT,
+		extraFiles TEXT)");
 
 	if($_GET["id"] != NULL)
 	{
 		$id = $_GET["id"];
 
-		$select = "SELECT email, text, product, version, os, gl, time, ip, file FROM reports WHERE id = :id";
+		$select = "SELECT email, text, product, version, os, gl, time, ip, file, extraFiles FROM reports WHERE id = :id";
 		$statement = $db->prepare($select);
 		$statement->bindParam(':id', $id);
 
@@ -127,6 +130,25 @@ try
 			echo "<tr><td>Address</td><td>" . gethostbyaddr($row['ip']) . " (" . $row['ip'] . ")</td></tr>\n";
 			echo "<tr><td>Email</td><td><a href=\"mailto:" . $row['email'] . "\">" . $row['email'] . "</a></td></tr>\n";
 			echo "<tr><td>dmp File</td><td><a href=\"" . $row['file'] . "\">" . $row['file'] . "</a></td></tr>\n";
+
+			$extraFiles = unserialize($row['extraFiles']);
+
+			if(!empty($extraFiles))
+			{
+				echo "<tr><td>Attachments</td><td>\n";
+				foreach($extraFiles as $extraFile)
+				{
+					if(exif_imagetype($extraFile) != false)
+					{
+						$thumbnail = "image.php?url=" . base64_encode($extraFile) . "&height=200";
+						echo "<a href=\"" . $extraFile . "\"><img src=\"" . $thumbnail . "\"></a>\n";
+					}
+					else
+						echo "<a href=\"" . $extraFile . "\">" . basename($extraFile) . "</a>\n";
+				}
+				echo "</td></tr>\n";
+			}
+
 			echo "<tr><td>Description</td><td>" . nl2br($row['text']) . "</td></tr>\n";
 			echo "<tr><td>Product</td><td>" . $row['product'] . " " . $row['version'] . "</td></tr>\n";
 			echo "<tr><td>OS</td><td>" . $row['os'] . "</td></tr>\n";
@@ -180,8 +202,27 @@ try
 		if(!move_uploaded_file($_FILES['dmp']['tmp_name'], $file))
 			throw new Exception('move_uploaded_file failed');
 
-		$insert = "INSERT INTO reports (email, text, product, version, os, gl, time, ip, file)
-			VALUES(:email, :text, :product, :version, :os, :gl, :time, :ip, :file)";
+		$extrasDir = $dir . '/' . basename($file, ".dmp");
+		$extraFiles = [];
+
+		foreach($_FILES as $fieldName => $keys)
+		{
+			if(preg_match('#^extra#', $fieldName) === 1)
+			{
+				if(!file_exists($extrasDir) && !mkdir($extrasDir))
+					throw new Exception('mkdir failed');
+
+				$extraFile = $extrasDir . '/' . basename($_FILES[$fieldName]['name']);
+
+				if(!move_uploaded_file($_FILES[$fieldName]['tmp_name'], $extraFile))
+					throw new Exception('move_uploaded_file failed');
+
+				$extraFiles[] = $extraFile;
+			}
+		}
+
+		$insert = "INSERT INTO reports (email, text, product, version, os, gl, time, ip, file, extraFiles)
+			VALUES(:email, :text, :product, :version, :os, :gl, :time, :ip, :file, :extraFiles)";
 		$statement = $db->prepare($insert);
 		$statement->bindParam(':email', $email);
 		$statement->bindParam(':text', $text);
@@ -192,6 +233,7 @@ try
 		$statement->bindParam(':time', $time);
 		$statement->bindParam(':ip', $ip);
 		$statement->bindParam(':file', $file);
+		$statement->bindParam(':extraFiles', serialize($extraFiles));
 
 		$statement->execute();
 
