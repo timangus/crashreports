@@ -109,13 +109,13 @@ try
 		time INTEGER,
 		ip TEXT,
 		file TEXT,
-		extraFiles TEXT)");
+		attachments TEXT)");
 
 	if($_GET["id"] != NULL)
 	{
 		$id = $_GET["id"];
 
-		$select = "SELECT email, text, product, version, os, gl, time, ip, file, extraFiles FROM reports WHERE id = :id";
+		$select = "SELECT email, text, product, version, os, gl, time, ip, file, attachments FROM reports WHERE id = :id";
 		$statement = $db->prepare($select);
 		$statement->bindParam(':id', $id);
 
@@ -131,20 +131,20 @@ try
 			echo "<tr><td>Email</td><td><a href=\"mailto:" . $row['email'] . "\">" . $row['email'] . "</a></td></tr>\n";
 			echo "<tr><td>dmp File</td><td><a href=\"" . $row['file'] . "\">" . $row['file'] . "</a></td></tr>\n";
 
-			$extraFiles = unserialize($row['extraFiles']);
+			$attachments = unserialize($row['attachments']);
 
-			if(!empty($extraFiles))
+			if(!empty($attachments))
 			{
 				echo "<tr><td>Attachments</td><td>\n";
-				foreach($extraFiles as $extraFile)
+				foreach($attachments as $attachment)
 				{
-					if(exif_imagetype($extraFile) != false)
+					if(exif_imagetype($attachment) !== false)
 					{
-						$thumbnail = "image.php?url=" . base64_encode($extraFile) . "&height=200";
-						echo "<a href=\"" . $extraFile . "\"><img src=\"" . $thumbnail . "\"></a>\n";
+						$thumbnail = "image.php?url=" . base64_encode($attachment) . "&height=200";
+						echo "<a href=\"" . $attachment . "\"><img src=\"" . $thumbnail . "\"></a>\n";
 					}
 					else
-						echo "<a href=\"" . $extraFile . "\">" . basename($extraFile) . "</a>\n";
+						echo "<a href=\"" . $attachment . "\">" . basename($attachment) . "</a>\n";
 				}
 				echo "</td></tr>\n";
 			}
@@ -202,27 +202,27 @@ try
 		if(!move_uploaded_file($_FILES['dmp']['tmp_name'], $file))
 			throw new Exception('move_uploaded_file failed');
 
-		$extrasDir = $dir . '/' . basename($file, ".dmp");
-		$extraFiles = [];
+		$attachmentsDir = $dir . '/' . basename($file, ".dmp");
+		$attachments = [];
 
 		foreach($_FILES as $fieldName => $keys)
 		{
-			if(preg_match('#^extra#', $fieldName) === 1)
+			if(preg_match('#^attachment#', $fieldName) === 1)
 			{
-				if(!file_exists($extrasDir) && !mkdir($extrasDir))
+				if(!file_exists($attachmentsDir) && !mkdir($attachmentsDir))
 					throw new Exception('mkdir failed');
 
-				$extraFile = $extrasDir . '/' . basename($_FILES[$fieldName]['name']);
+				$attachment = $attachmentsDir . '/' . basename($_FILES[$fieldName]['name']);
 
-				if(!move_uploaded_file($_FILES[$fieldName]['tmp_name'], $extraFile))
+				if(!move_uploaded_file($_FILES[$fieldName]['tmp_name'], $attachment))
 					throw new Exception('move_uploaded_file failed');
 
-				$extraFiles[] = $extraFile;
+				$attachments[] = $attachment;
 			}
 		}
 
-		$insert = "INSERT INTO reports (email, text, product, version, os, gl, time, ip, file, extraFiles)
-			VALUES(:email, :text, :product, :version, :os, :gl, :time, :ip, :file, :extraFiles)";
+		$insert = "INSERT INTO reports (email, text, product, version, os, gl, time, ip, file, attachments)
+			VALUES(:email, :text, :product, :version, :os, :gl, :time, :ip, :file, :attachments)";
 		$statement = $db->prepare($insert);
 		$statement->bindParam(':email', $email);
 		$statement->bindParam(':text', $text);
@@ -233,7 +233,7 @@ try
 		$statement->bindParam(':time', $time);
 		$statement->bindParam(':ip', $ip);
 		$statement->bindParam(':file', $file);
-		$statement->bindParam(':extraFiles', serialize($extraFiles));
+		$statement->bindParam(':attachments', serialize($attachments));
 
 		$statement->execute();
 
