@@ -125,7 +125,13 @@ try
 		echo "<table>\n";
 		if($row != NULL)
 		{
-			$symbols = updateSymbols($row['file'], $symbolsDir);
+			$os = $row['os'];
+			$symbols = "None downloaded";
+
+			# If it's a Windows crash report, try and download MS symbols
+			if(strpos($os, "windows") !== false)
+				$symbols = updateSymbols($row['file'], $symbolsDir);
+
 			echo "<tr><td>Time</td><td>" . date('H:m:s d/m/Y', $row['time']) . "</td></tr>\n";
 			echo "<tr><td>Address</td><td>" . gethostbyaddr($row['ip']) . " (" . $row['ip'] . ")</td></tr>\n";
 			echo "<tr><td>Email</td><td><a href=\"mailto:" . $row['email'] . "\">" . $row['email'] . "</a></td></tr>\n";
@@ -151,7 +157,7 @@ try
 
 			echo "<tr><td>Description</td><td>" . nl2br($row['text']) . "</td></tr>\n";
 			echo "<tr><td>Product</td><td>" . $row['product'] . " " . $row['version'] . "</td></tr>\n";
-			echo "<tr><td>OS</td><td>" . $row['os'] . "</td></tr>\n";
+			echo "<tr><td>OS</td><td>" . $os . "</td></tr>\n";
 			echo "<tr><td>Stack</td><td>" . decodeDmpFile($minidumpExecutable, $row['file'], $symbolsDir) . "</td></tr>\n";
 			echo "<tr><td>OpenGL</td><td><div class=\"monospace\">" . $row['gl'] . "</div></td></tr>\n";
 			echo "<tr><td>Symbols</td><td>" . $symbols . "</td></tr>\n";
