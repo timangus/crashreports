@@ -259,11 +259,47 @@ try
 			'Content-type: text/html; charset=iso-8859-1' . "\r\n";
 
 		mail($reportEmail, "$product $version Crash", $message, $headers);
+
+		clearOldSymbols($symbolsDir);
 	}
 }
 catch(Exception $e)
 {
 	echo $e->getMessage();
+}
+
+function clearOldSymbols($symbolsDir)
+{
+	// Removes symbol files that are older than X months
+	$MAX_AGE_MONTH = 6;
+	$oldestTime = mktime(0, 0, 0, date("m")-$MAX_AGE_MONTH, date("d"), date("Y"));
+	$files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($symbolsDir));
+	foreach($files as $file)
+	{
+		if(is_file($file) && (filemtime($file) < $oldestTime))
+		{
+			error_log("Removing old symbols");
+			error_log($file->getRealPath());
+			$parentDirectory = realpath($file->getPath());
+			unlink($file->getRealPath());
+			if(is_dir_empty($parentDirectory))
+				rmdir( $parentDirectory );
+		}
+	}
+}
+
+function is_dir_empty($dir)
+{
+	if(!is_readable($dir))
+		return NULL;
+
+	$handle = opendir($dir);
+	while(false !== ($entry = readdir($handle)))
+	{
+		if($entry != "." && $entry != "..")
+			return FALSE;
+	}
+	return TRUE;
 }
 ?>
   </body>
