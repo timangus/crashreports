@@ -112,7 +112,7 @@ try
 		file TEXT,
 		attachments TEXT)");
 
-	if($_GET["id"] != NULL)
+	if(array_key_exists("id", $_GET))
 	{
 		$id = $_GET["id"];
 
@@ -165,7 +165,7 @@ try
 		}
 		echo "</table>\n";
 	}
-	else
+	else if(array_key_exists("checksum", $_POST))
 	{
 		if(!empty($_SERVER['HTTP_CLIENT_IP']))
 		{
