@@ -280,8 +280,8 @@ function clearOldSymbols($symbolsDir)
 	{
 		if(is_file($file) && (filemtime($file) < $oldestTime))
 		{
-			error_log("Removing old symbols");
-			error_log($file->getRealPath());
+			error_log("Removing old symbol file: " . $file->getRealPath());
+
 			$parentDirectory = realpath($file->getPath());
 			unlink($file->getRealPath());
 			if(is_dir_empty($parentDirectory))
