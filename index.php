@@ -51,6 +51,7 @@ function decodeDmpFile($exe, $dmpFile, $symbolsDir)
 	$id = 0;
 	$state = "";
 	$output = "";
+	$nextpre = "";
 	foreach($lines as $line)
 	{
 		$pre = $nextpre;
