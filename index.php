@@ -254,7 +254,8 @@ try
 		$message .= "<a href=\"$baseUrl?id=$id\">Crash Report</a><br>";
 		$message .= "</body></html>\n";
 
-		$headers = 'From:' . $email . "\r\n" .
+		$headers = 'From: ' . $fromEmail . "\r\n" .
+			'Reply-To: ' . $email . "\r\n" .
 			'X-Mailer: PHP/' . phpversion() . "\r\n" .
 			'MIME-Version: 1.0' . "\r\n" .
 			'Content-type: text/html; charset=iso-8859-1' . "\r\n";
