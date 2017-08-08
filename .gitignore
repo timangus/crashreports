@@ -2,4 +2,6 @@ breakpad/
 dmps/
 reports.sqlite3
 symbols/
+static-symbols/
+*.dll
 
