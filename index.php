@@ -273,7 +273,7 @@ catch(Exception $e)
 function clearOldSymbols($symbolsDir)
 {
 	// Removes symbol files that are older than X months
-	$MAX_AGE_MONTH = 6;
+	$MAX_AGE_MONTH = 3;
 	$oldestTime = mktime(0, 0, 0, date("m")-$MAX_AGE_MONTH, date("d"), date("Y"));
 	$files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($symbolsDir));
 	foreach($files as $file)
