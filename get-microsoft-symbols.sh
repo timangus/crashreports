@@ -1,9 +1,10 @@
 #! /bin/bash
 
-DIR="$(dirname "${BASH_SOURCE[0]}")"
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 DMP_FILE=$1
 SYMBOLS_DIR=$2
 WORKING_DIR="/tmp/"
+STATIC_SYMBOLS_DIR="${DIR}/static-symbols/"
 
 if [ ! -e "${DMP_FILE}" ]
 then
@@ -17,6 +18,12 @@ then
 	exit 1
 fi
 
+if [ ! -d "${STATIC_SYMBOLS_DIR}" ]
+then
+	echo "${STATIC_SYMBOLS_DIR} does not exist or is not a directory"
+	exit 1
+fi
+
 STACKWALK="${DIR}/breakpad/src/processor/minidump_stackwalk"
 DUMPSYMS="${DIR}/breakpad/src/tools/windows/binaries/dump_syms.exe"
 
@@ -24,6 +31,20 @@ MISSING_SYMBOLS=$(${STACKWALK} ${DMP_FILE} ${SYMBOLS_DIR} 2> /dev/null | \
 	grep "WARNING: No symbols" | \
 	sed -e 's/.*WARNING: No symbols, \([^,]*\), \([^)]*\))/\1 \2/' | \
 	sort | uniq)
+
+dumpSyms()
+{
+	wine ${DUMPSYMS} "${1}" 2> /dev/null > ${2}
+
+	if [[ -s ${2} ]]
+	then
+		chmod 664 ${2}
+		return 0
+	else
+		rm -f ${2}
+		return 1
+	fi
+}
 
 while read -r LINE
 do
@@ -46,39 +67,74 @@ do
 	fi
 
 	echo -n ${PDB}
-	CAB="${LIB}.pd_"
-	echo -n "."
-	curl -s -f -A "Microsoft-Symbol-Server/6.3.0.0" \
-		"http://msdl.microsoft.com/download/symbols/${PDB}/${ID}/${CAB}" \
-		-o "${WORKING_DIR}/${CAB}"
-	if [ ! -e "${WORKING_DIR}/${CAB}" ]
+	STATIC_PDB=$(find ${STATIC_SYMBOLS_DIR} -name ${PDB})
+	if [[ ! -z "${STATIC_PDB}" ]]
 	then
-		echo " failed to download"
-		continue
-	fi
-
-	echo "."
-	EXTRACTED_FILES=$(cabextract -d ${WORKING_DIR} "${WORKING_DIR}/${CAB}" | \
-		grep "  extracting" | sed -e 's/\s*extracting\s*//')
-	while read -r EXTRACTED_FILE
-	do
+		echo "."
 		SYM_DIR=$(dirname ${SYM_FILE})
 		mkdir -m 775 -p ${SYM_DIR}
 
-		EXT="${EXTRACTED_FILE##*.}"
-		case ${EXT} in
-		"pdb")
-			wine ${DUMPSYMS} "${EXTRACTED_FILE}" 2> /dev/null > ${SYM_FILE}
-			chmod 664 ${SYM_FILE}
-			echo "  converted: ${SYM_FILE}"
-			;;
-		"sym")
-			cp "${EXTRACTED_FILE}" ${SYM_FILE}
-			chmod 664 ${SYM_FILE}
-			echo "  copied: ${SYM_FILE}"
-			;;
-		esac
-		rm ${EXTRACTED_FILE}
-	done <<< "${EXTRACTED_FILES}"
-	rm "${WORKING_DIR}/${CAB}"
+		dumpSyms ${STATIC_PDB} ${SYM_FILE}
+
+		if [ $? == 0 ]
+		then
+			SYM_ID=$(head -n1 ${SYM_FILE} | cut -d' ' -f4)
+			if [ "${SYM_ID}" != "${ID}" ]
+			then
+				echo "  ID doesn't match: ${SYM_FILE}"
+				rm -f ${SYM_FILE}
+			else
+				echo "  static converted: ${SYM_FILE}"
+			fi
+		fi
+	else
+		CAB="${LIB}.pd_"
+		echo -n "."
+		curl -s -f -A "Microsoft-Symbol-Server/6.3.0.0" \
+			"http://msdl.microsoft.com/download/symbols/${PDB}/${ID}/${CAB}" \
+			-o "${WORKING_DIR}/${CAB}"
+		if [ ! -e "${WORKING_DIR}/${CAB}" ]
+		then
+			echo " failed to download"
+			continue
+		fi
+
+		echo "."
+		EXTRACTED_FILES=$(cabextract -d ${WORKING_DIR} "${WORKING_DIR}/${CAB}" | \
+			grep "  extracting" | sed -e 's/\s*extracting\s*//')
+		while read -r EXTRACTED_FILE
+		do
+			SYM_DIR=$(dirname ${SYM_FILE})
+			mkdir -m 775 -p ${SYM_DIR}
+
+			EXT="${EXTRACTED_FILE##*.}"
+			case ${EXT} in
+			"pdb")
+				dumpSyms ${EXTRACTED_FILE} ${SYM_FILE}
+				if [ $? == 0 ]
+				then
+					echo "  converted: ${SYM_FILE}"
+				fi
+				;;
+			"sym")
+				cp "${EXTRACTED_FILE}" ${SYM_FILE}
+				chmod 664 ${SYM_FILE}
+				echo "  copied: ${SYM_FILE}"
+				;;
+			esac
+			rm ${EXTRACTED_FILE}
+		done <<< "${EXTRACTED_FILES}"
+		rm "${WORKING_DIR}/${CAB}"
+	fi
 done <<< "${MISSING_SYMBOLS}"
+
+EMPTY_SYM_FILES=$(find symbols -size 0)
+if [[ ! -z "${EMPTY_SYM_FILES}" ]]
+then
+	echo "Deleting empty .sym files:"
+	for EMPTY_SYM_FILE in ${EMPTY_SYM_FILES}
+	do
+		echo "  ${EMPTY_SYM_FILE}"
+		rm ${EMPTY_SYM_FILE}
+	done
+fi
