@@ -88,20 +88,32 @@ do
 			fi
 		fi
 	else
-		CAB="${LIB}.pd_"
+		CAB_FILE="${LIB}.pd_"
+		CAB_URL="http://msdl.microsoft.com/download/symbols/${PDB}/${ID}/${CAB_FILE}"
 		echo -n "."
 		curl -s -f -A "Microsoft-Symbol-Server/6.3.0.0" \
-			"http://msdl.microsoft.com/download/symbols/${PDB}/${ID}/${CAB}" \
-			-o "${WORKING_DIR}/${CAB}"
-		if [ ! -e "${WORKING_DIR}/${CAB}" ]
+			"${CAB_URL}" -o "${WORKING_DIR}/${CAB_FILE}"
+		if [ -e "${WORKING_DIR}/${CAB_FILE}" ]
 		then
-			echo " failed to download"
-			continue
+			EXTRACTED_FILES=$(cabextract -d ${WORKING_DIR} "${WORKING_DIR}/${CAB_FILE}" | \
+				grep "  extracting" | sed -e 's/\s*extracting\s*//')
+		else
+			PDB_FILE="${LIB}.pdb"
+			PDB_URL="http://msdl.microsoft.com/download/symbols/${PDB}/${ID}/${PDB_FILE}"
+			echo -n "."
+			curl -s -f -A "Microsoft-Symbol-Server/6.3.0.0" \
+				"${PDB_URL}" -o "${WORKING_DIR}/${PDB_FILE}"
+
+			if [ ! -e "${WORKING_DIR}/${PDB_FILE}" ]
+			then
+				echo " failed to download"
+				continue
+			fi
+
+			EXTRACTED_FILES="${WORKING_DIR}/${PDB_FILE}"
 		fi
 
 		echo "."
-		EXTRACTED_FILES=$(cabextract -d ${WORKING_DIR} "${WORKING_DIR}/${CAB}" | \
-			grep "  extracting" | sed -e 's/\s*extracting\s*//')
 		while read -r EXTRACTED_FILE
 		do
 			SYM_DIR=$(dirname ${SYM_FILE})
@@ -124,7 +136,16 @@ do
 			esac
 			rm ${EXTRACTED_FILE}
 		done <<< "${EXTRACTED_FILES}"
-		rm "${WORKING_DIR}/${CAB}"
+
+		if [ -e "${WORKING_DIR}/${CAB_FILE}" ]
+		then
+			rm "${WORKING_DIR}/${CAB_FILE}"
+		fi
+
+		if [ -e "${WORKING_DIR}/${PDB_FILE}" ]
+		then
+			rm "${WORKING_DIR}/${PDB_FILE}"
+		fi
 	fi
 done <<< "${MISSING_SYMBOLS}"
 
