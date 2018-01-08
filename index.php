@@ -278,14 +278,14 @@ function clearOldSymbols($symbolsDir)
 	$files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($symbolsDir));
 	foreach($files as $file)
 	{
-		if(is_file($file) && (filemtime($file) < $oldestTime))
+		if(is_file($file->getRealPath()) && (filemtime($file) < $oldestTime))
 		{
 			error_log("Removing old symbol file: " . $file->getRealPath());
 
 			$parentDirectory = realpath($file->getPath());
 			unlink($file->getRealPath());
 			if(is_dir_empty($parentDirectory))
-				rmdir( $parentDirectory );
+				rmdir($parentDirectory);
 		}
 	}
 }
