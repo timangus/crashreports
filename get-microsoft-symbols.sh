@@ -5,6 +5,7 @@ DMP_FILE=$1
 SYMBOLS_DIR=$2
 WORKING_DIR="/tmp/"
 STATIC_SYMBOLS_DIR="${DIR}/static-symbols/"
+BLACKLIST="nv.* ig9.* dropbox.* Wacom.*"
 
 if [ ! -e "${DMP_FILE}" ]
 then
@@ -96,6 +97,22 @@ do
 		CAB_FILE="${LIB}.pd_"
 		CAB_URL="http://msdl.microsoft.com/download/symbols/${PDB}/${ID}/${CAB_FILE}"
 		echo -n "."
+
+		BLACK_LISTED=0
+		for RE in ${BLACKLIST}
+		do
+			if [[ ${PDB} =~ ${RE} ]]
+			then
+				echo " blacklisted"
+				BLACK_LISTED=1
+			fi
+		done
+
+		if [ ${BLACK_LISTED} == "1" ]
+		then
+			continue
+		fi
+
 		curl -s -f -A "Microsoft-Symbol-Server/6.3.0.0" \
 			"${CAB_URL}" -o "${WORKING_DIR}/${CAB_FILE}"
 		if [ -e "${WORKING_DIR}/${CAB_FILE}" ]
