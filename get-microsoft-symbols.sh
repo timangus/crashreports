@@ -47,6 +47,7 @@ dumpSyms()
 	fi
 }
 
+echo "Fetching symbols..."
 while read -r LINE
 do
 	ARRAY=($LINE)
@@ -181,3 +182,4 @@ then
 		rm ${EMPTY_SYM_FILE}
 	done
 fi
+echo "...done"
