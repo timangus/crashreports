@@ -67,26 +67,31 @@ do
 	fi
 
 	echo -n ${PDB}
-	STATIC_PDB=$(find ${STATIC_SYMBOLS_DIR} -name ${PDB})
-	if [[ ! -z "${STATIC_PDB}" ]]
+	STATIC_PDBS=$(find ${STATIC_SYMBOLS_DIR} -name ${PDB})
+	if [[ ! -z "${STATIC_PDBS}" ]]
 	then
 		echo "."
 		SYM_DIR=$(dirname ${SYM_FILE})
 		mkdir -m 775 -p ${SYM_DIR}
 
-		dumpSyms ${STATIC_PDB} ${SYM_FILE}
+		for STATIC_PDB in ${STATIC_PDBS}
+		do
+			TEMP_SYM_FILE=$(mktemp)
+			dumpSyms ${STATIC_PDB} ${TEMP_SYM_FILE}
 
-		if [ $? == 0 ]
-		then
-			SYM_ID=$(head -n1 ${SYM_FILE} | cut -d' ' -f4)
-			if [ "${SYM_ID}" != "${ID}" ]
+			if [ $? == 0 ]
 			then
-				echo "  ID doesn't match: ${SYM_FILE}"
-				rm -f ${SYM_FILE}
-			else
-				echo "  static converted: ${SYM_FILE}"
+				SYM_ID=$(head -n1 ${TEMP_SYM_FILE} | cut -d' ' -f4)
+				if [ "${SYM_ID}" != "${ID}" ]
+				then
+					echo "  ID doesn't match: ${STATIC_PDB} expected ${ID} seen ${SYM_ID}"
+					rm -f ${TEMP_SYM_FILE}
+				else
+					mv ${TEMP_SYM_FILE} ${SYM_FILE}
+					echo "  static converted: ${SYM_FILE}"
+				fi
 			fi
-		fi
+		done
 	else
 		CAB_FILE="${LIB}.pd_"
 		CAB_URL="http://msdl.microsoft.com/download/symbols/${PDB}/${ID}/${CAB_FILE}"
