@@ -67,17 +67,22 @@ function decodeDmpFile($exe, $dmpFile, $symbolsDir)
 		}
 		else if($state == "" && preg_match("/^Thread \d+.*$/", $line))
 			$state = "thread";
-		else if($state != "" && preg_match("/^\s*\d+\s*.*$/", $line))
+		else if($state != "")
 		{
-			$stackFrameId = "stackframe" . $id++;
-			if($state == "thread")
-				$state = "stackframes";
-			else
-				$pre = "</div>";
+			if(preg_match("/^\s*\d+\s*.*$/", $line))
+			{
+				$stackFrameId = "stackframe" . $id++;
+				if($state == "thread")
+					$state = "stackframes";
+				else
+					$pre = "</div>";
 
-			$pre .= "<a data-toggle=\"collapse\" href=\"#$stackFrameId\">";
-			$post = "</a>";
-			$nextpre = "<div id=\"$stackFrameId\" class=\"collapse\">";
+				$pre .= "<a data-toggle=\"collapse\" href=\"#$stackFrameId\">";
+				$post = "</a>";
+				$nextpre = "<div id=\"$stackFrameId\" class=\"collapse\">";
+			}
+			else if($state == "thread")
+				$state = "";
 		}
 
 		$output .= $pre . htmlspecialchars($line) . $post . "\n";
