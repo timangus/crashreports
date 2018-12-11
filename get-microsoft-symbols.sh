@@ -7,6 +7,12 @@ WORKING_DIR="/tmp/"
 STATIC_SYMBOLS_DIR="${DIR}/static-symbols/"
 BLACKLIST="nv.* ig9.* dropbox.* Wacom.* Wintab32.*"
 
+if [ ! -x "$(command -v wine)" ]
+then
+	echo "wine is not installed"
+	exit 1
+fi
+
 if [ ! -e "${DMP_FILE}" ]
 then
 	echo "${DMP_FILE} does not exist"
@@ -33,9 +39,15 @@ MISSING_SYMBOLS=$(${STACKWALK} ${DMP_FILE} ${SYMBOLS_DIR} 2> /dev/null | \
 	sed -e 's/.*WARNING: No symbols, \([^,]*\), \([^)]*\))/\1 \2/' | \
 	sort | uniq)
 
-dumpSyms()
+function invokeWine()
 {
-	wine ${DUMPSYMS} "${1}" 2> /dev/null > ${2}
+	WINEPREFIX=${DIR}/wine wine "$@" 2> /tmp/wine.out
+	#FIXME somehow capture exit code of Windows application
+}
+
+function dumpSyms()
+{
+	invokeWine ${DUMPSYMS} "${1}" > ${2}
 
 	if [[ -s ${2} ]]
 	then
@@ -46,6 +58,9 @@ dumpSyms()
 		return 1
 	fi
 }
+
+# Ensure msdia120.dll is registered
+invokeWine regsvr32 "${DIR}/msdia120.dll" &> /tmp/regsvr.out
 
 echo "Fetching symbols..."
 while read -r LINE
@@ -90,7 +105,7 @@ do
 					rm -f ${TEMP_SYM_FILE}
 				else
 					mv ${TEMP_SYM_FILE} ${SYM_FILE}
-					echo "  static converted: ${SYM_FILE}"
+					echo "  static converted: ${STATIC_PDB} ${SYM_FILE}"
 				fi
 			fi
 		done
