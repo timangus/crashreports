@@ -5,4 +5,4 @@ symbols/
 static-symbols/
 *.dll
 wine/
-
+.htpasswd
