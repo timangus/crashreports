@@ -17,9 +17,18 @@ th, td {
     vertical-align: top;
     text-align: left;
     padding: 8px;
+    white-space: nowrap;
+}
+
+.fillWidth {
+    white-space: normal;
 }
 
 tr:nth-child(even){background-color: #f2f2f2}
+
+.hoverTable tr:hover {
+    background-color: #ACEFA0;
+}
 
 th {
     background-color: #4CAF50;
@@ -268,6 +277,46 @@ try
 		mail($reportEmail, "$product $version Crash", $message, $headers);
 
 		clearOldSymbols($symbolsDir);
+	}
+	else
+	{
+		echo "<table class=\"hoverTable\">";
+		echo "<tr>";
+
+		echo "<th>Email</th>";
+		echo "<th>Product</th>";
+		echo "<th>Description</th>";
+		echo "<th>Time</th>";
+
+		echo "</tr>";
+
+		$select = "SELECT id, email, text, product, version, time FROM reports " .
+			"ORDER BY time DESC";
+		$statement = $db->prepare($select);
+		$statement->execute();
+
+		while($row = $statement->fetch(PDO::FETCH_ASSOC))
+		{
+			$id = $row['id'];
+			$email = $row['email'];
+			$product = $row['product'] . " " . $row['version'];
+			$htmlProduct = rawurlencode($product);
+			$text = $row['text'];
+			$time = $row['time'];
+
+			echo "<tr onclick=\"window.location='?id=$id';\">";
+
+			echo "<td>";
+			echo "<a href=\"mailto:$email?subject=$htmlProduct\">$email</a>";
+			echo "</td>";
+			echo "<td>$product</td>";
+			echo "<td class=\"fillWidth\">$text</td>";
+			echo "<td>" . date("H:i d-m-Y", $time) . "</td>";
+
+			echo "</tr>";
+		}
+
+		echo "</table>";
 	}
 }
 catch(Exception $e)
