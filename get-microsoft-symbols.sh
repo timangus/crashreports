@@ -3,7 +3,7 @@
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 DMP_FILE=$1
 SYMBOLS_DIR=$2
-WORKING_DIR="/tmp/"
+WORKING_DIR="/tmp"
 STATIC_SYMBOLS_DIR="${DIR}/static-symbols/"
 BLACKLIST="nv.* ig9.* dropbox.* Wacom.* Wintab32.*"
 
@@ -111,8 +111,8 @@ do
 		done
 	else
 		CAB_FILE="${LIB}.pd_"
-		CAB_URL="http://msdl.microsoft.com/download/symbols/${PDB}/${ID}/${CAB_FILE}"
-		echo -n "."
+		CAB_URL="https://msdl.microsoft.com/download/symbols/${PDB}/${ID}/${CAB_FILE}"
+		echo -n "<a href=\"${CAB_URL}\">.</a>"
 
 		BLACK_LISTED=0
 		for RE in ${BLACKLIST}
@@ -129,22 +129,34 @@ do
 			continue
 		fi
 
-		curl -s -f -A "Microsoft-Symbol-Server/6.3.0.0" \
+		curl -s -f -L -A "Microsoft-Symbol-Server/6.3.0.0" \
 			"${CAB_URL}" -o "${WORKING_DIR}/${CAB_FILE}"
 		if [ -e "${WORKING_DIR}/${CAB_FILE}" ]
 		then
+			if [ ! -s "${WORKING_DIR}/${CAB_FILE}" ]
+			then
+				echo " downloaded file ${WORKING_DIR}/${CAB_FILE} is empty"
+				rm "${WORKING_DIR}/${CAB_FILE}"
+				continue
+			fi
+
 			EXTRACTED_FILES=$(cabextract -d ${WORKING_DIR} "${WORKING_DIR}/${CAB_FILE}" | \
 				grep "  extracting" | sed -e 's/\s*extracting\s*//')
 		else
 			PDB_FILE="${LIB}.pdb"
-			PDB_URL="http://msdl.microsoft.com/download/symbols/${PDB}/${ID}/${PDB_FILE}"
-			echo -n "."
-			curl -s -f -A "Microsoft-Symbol-Server/6.3.0.0" \
+			PDB_URL="https://msdl.microsoft.com/download/symbols/${PDB}/${ID}/${PDB_FILE}"
+			echo -n "<a href=\"${PDB_URL}\">.</a>"
+			curl -s -f -L -A "Microsoft-Symbol-Server/6.3.0.0" \
 				"${PDB_URL}" -o "${WORKING_DIR}/${PDB_FILE}"
 
 			if [ ! -e "${WORKING_DIR}/${PDB_FILE}" ]
 			then
 				echo " failed to download"
+				continue
+			elif [ ! -s "${WORKING_DIR}/${PDB_FILE}" ]
+			then
+				echo " downloaded file ${WORKING_DIR}/${PDB_FILE} is empty"
+				rm "${WORKING_DIR}/${PDB_FILE}"
 				continue
 			fi
 
@@ -164,6 +176,8 @@ do
 				if [ $? == 0 ]
 				then
 					echo "  converted: ${SYM_FILE}"
+				else
+					echo "  conversion failed: ${EXTRACTED_FILE}"
 				fi
 				;;
 			"sym")
