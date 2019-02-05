@@ -5,7 +5,7 @@ DMP_FILE=$1
 SYMBOLS_DIR=$2
 WORKING_DIR="/tmp"
 STATIC_SYMBOLS_DIR="${DIR}/static-symbols/"
-BLACKLIST="nv.* ig9.* dropbox.* Wacom.* Wintab32.*"
+BLACKLIST="nv.* ig9.* dropbox.* Wacom.* Wintab32.* aswhooka.* FileSyncShell.*"
 
 if [ ! -x "$(command -v wine)" ]
 then
