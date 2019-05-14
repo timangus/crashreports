@@ -77,6 +77,20 @@ th {
     font-size: 80%;
     white-space: pre-wrap;
 }
+
+.loader {
+    border: 8px solid #cccccc; /* Light grey */
+    border-top: 8px solid #3498db; /* Blue */
+    border-radius: 50%;
+    width: 48px;
+    height: 48px;
+    animation: spin 2s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
 </style>
   </head>
 <?php
@@ -155,15 +169,17 @@ try
 			echo "<tr><td>Description</td><td>" . nl2br($row['text']) . "</td></tr>\n";
 			echo "<tr><td>Product</td><td>" . $row['product'] . " " . $row['version'] . "</td></tr>\n";
 			echo "<tr><td>OS</td><td>" . $os . "</td></tr>\n";
-			echo "<tr><td>Stack</td>";
-			echo "<td id=\"stack\">Loading...</td></tr>\n";
-			echo "<tr><td>OpenGL</td><td><div class=\"monospace\">" . $row['gl'] . "</div></td></tr>\n";
 
 			if(strpos($os, "windows") !== false)
 			{
 				echo "<tr><td>Symbols</td>";
-				echo "<td id=\"symbols\">Loading...</td></tr>\n";
+				echo "<td id=\"symbols\"><div class=\"loader\"></div></td></tr>\n";
 			}
+
+			echo "<tr><td>Stack</td>";
+			echo "<td id=\"stack\"><div class=\"loader\"></div></td></tr>\n";
+			echo "<tr><td>OpenGL</td><td><div class=\"monospace\">" . $row['gl'] . "</div></td></tr>\n";
+
 			echo "</table>\n";
 			echo "</body>\n";
 		}
