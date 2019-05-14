@@ -7,6 +7,43 @@
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.2/jquery.min.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
+
+<script>
+function updateSymbols(dmpFile, symbolsDir)
+{
+  var req = new XMLHttpRequest();
+  req.addEventListener("load", function()
+  {
+    var output = this.responseText;
+
+    var element = document.getElementById("symbols");
+    element.innerHTML = "<div class=\"monospace\">" + output + "</div>";
+
+    // This may have completed already, but do it again
+    // since we may have new symbols
+    decodeDmpFile(dmpFile, symbolsDir);
+  });
+
+  req.open("GET", "updatesymbols.php?dmpFile=" + dmpFile + "&symbolsDir=" + symbolsDir);
+  req.send();
+}
+
+function decodeDmpFile(dmpFile, symbolsDir)
+{
+  var req = new XMLHttpRequest();
+  req.addEventListener("load", function()
+  {
+    var output = this.responseText;
+
+    var element = document.getElementById("stack");
+    element.innerHTML = output;
+  });
+
+  req.open("GET", "decodedmpfile.php?dmpFile=" + dmpFile + "&symbolsDir=" + symbolsDir);
+  req.send();
+}
+</script>
+
 <style>
 table {
     border-collapse: collapse;
@@ -42,65 +79,7 @@ th {
 }
 </style>
   </head>
-  <body>
 <?php
-function updateSymbols($dmpFile, $symbolsDir)
-{
-	$command = "bash get-microsoft-symbols.sh $dmpFile $symbolsDir";
-	$text = shell_exec($command);
-	return "<div class=\"monospace\">" . $text . "</div>";
-}
-
-function decodeDmpFile($exe, $dmpFile, $symbolsDir)
-{
-	$command = "$exe $dmpFile $symbolsDir";
-	$text = shell_exec($command);
-
-	$lines = explode(PHP_EOL,$text);
-	$id = 0;
-	$state = "";
-	$output = "";
-	$nextpre = "";
-	foreach($lines as $line)
-	{
-		$pre = $nextpre;
-		$nextpre = "";
-		$post = "";
-
-		if(trim($line) == "")
-		{
-			if($state != "")
-				$pre = "</div>";
-
-			$state = "";
-		}
-		else if($state == "" && preg_match("/^Thread \d+.*$/", $line))
-			$state = "thread";
-		else if($state != "")
-		{
-			if(preg_match("/^\s*\d+\s*.*$/", $line))
-			{
-				$stackFrameId = "stackframe" . $id++;
-				if($state == "thread")
-					$state = "stackframes";
-				else
-					$pre = "</div>";
-
-				$pre .= "<a data-toggle=\"collapse\" href=\"#$stackFrameId\">";
-				$post = "</a>";
-				$nextpre = "<div id=\"$stackFrameId\" class=\"collapse\">";
-			}
-			else if($state == "thread")
-				$state = "";
-		}
-
-		$output .= $pre . htmlspecialchars($line) . $post . "\n";
-		$pre = "";
-	}
-
-	return "<div class=\"monospace\">" . $output . "</div>";
-}
-
 try
 {
 	$settings = json_decode(file_get_contents("settings.json"), true);
@@ -137,20 +116,23 @@ try
 		$statement->execute();
 		$row = $statement->fetch(PDO::FETCH_ASSOC);
 
-		echo "<table>\n";
 		if($row != NULL)
 		{
+			$dmpFile = $row['file'];
 			$os = $row['os'];
-			$symbols = "None downloaded";
+
+			$onLoad = "decodeDmpFile('$dmpFile', '$symbolsDir');";
 
 			# If it's a Windows crash report, try and download MS symbols
 			if(strpos($os, "windows") !== false)
-				$symbols = updateSymbols($row['file'], $symbolsDir);
+				$onLoad = "updateSymbols('$dmpFile', '$symbolsDir'); " . $onLoad;
 
+			echo "<body onLoad=\"$onLoad\">";
+			echo "<table>\n";
 			echo "<tr><td>Time</td><td>" . date('H:m:s d/m/Y', $row['time']) . "</td></tr>\n";
 			echo "<tr><td>Address</td><td>" . gethostbyaddr($row['ip']) . " (" . $row['ip'] . ")</td></tr>\n";
 			echo "<tr><td>Email</td><td><a href=\"mailto:" . $row['email'] . "\">" . $row['email'] . "</a></td></tr>\n";
-			echo "<tr><td>dmp File</td><td><a href=\"" . $row['file'] . "\">" . $row['file'] . "</a></td></tr>\n";
+			echo "<tr><td>dmp File</td><td><a href=\"$dmpFile\">$dmpFile</a></td></tr>\n";
 
 			$attachments = unserialize($row['attachments']);
 
@@ -173,11 +155,18 @@ try
 			echo "<tr><td>Description</td><td>" . nl2br($row['text']) . "</td></tr>\n";
 			echo "<tr><td>Product</td><td>" . $row['product'] . " " . $row['version'] . "</td></tr>\n";
 			echo "<tr><td>OS</td><td>" . $os . "</td></tr>\n";
-			echo "<tr><td>Stack</td><td>" . decodeDmpFile($minidumpExecutable, $row['file'], $symbolsDir) . "</td></tr>\n";
+			echo "<tr><td>Stack</td>";
+			echo "<td id=\"stack\">Loading...</td></tr>\n";
 			echo "<tr><td>OpenGL</td><td><div class=\"monospace\">" . $row['gl'] . "</div></td></tr>\n";
-			echo "<tr><td>Symbols</td><td>" . $symbols . "</td></tr>\n";
+
+			if(strpos($os, "windows") !== false)
+			{
+				echo "<tr><td>Symbols</td>";
+				echo "<td id=\"symbols\">Loading...</td></tr>\n";
+			}
+			echo "</table>\n";
+			echo "</body>\n";
 		}
-		echo "</table>\n";
 	}
 	else if(array_key_exists("checksum", $_POST))
 	{
@@ -280,6 +269,7 @@ try
 	}
 	else
 	{
+		echo "<body>";
 		echo "<table class=\"hoverTable\">";
 		echo "<tr>";
 
@@ -317,6 +307,7 @@ try
 		}
 
 		echo "</table>";
+		echo "</body>";
 	}
 }
 catch(Exception $e)
@@ -358,5 +349,4 @@ function is_dir_empty($dir)
 	return TRUE;
 }
 ?>
-  </body>
 </html>
