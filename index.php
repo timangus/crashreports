@@ -9,7 +9,7 @@
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
 
 <script>
-function updateSymbols(dmpFile, symbolsDir)
+function updateSymbols(id, dmpFile, symbolsDir)
 {
   var req = new XMLHttpRequest();
   req.addEventListener("load", function()
@@ -21,14 +21,15 @@ function updateSymbols(dmpFile, symbolsDir)
 
     // This may have completed already, but do it again
     // since we may have new symbols
-    decodeDmpFile(dmpFile, symbolsDir);
+    decodeDmpFile(id, dmpFile, symbolsDir);
   });
 
-  req.open("GET", "updatesymbols.php?dmpFile=" + dmpFile + "&symbolsDir=" + symbolsDir);
+  req.open("GET", "updatesymbols.php?dmpFile=" +
+    dmpFile + "&symbolsDir=" + symbolsDir);
   req.send();
 }
 
-function decodeDmpFile(dmpFile, symbolsDir)
+function decodeDmpFile(id, dmpFile, symbolsDir)
 {
   var req = new XMLHttpRequest();
   req.addEventListener("load", function()
@@ -39,7 +40,8 @@ function decodeDmpFile(dmpFile, symbolsDir)
     element.innerHTML = output;
   });
 
-  req.open("GET", "decodedmpfile.php?dmpFile=" + dmpFile + "&symbolsDir=" + symbolsDir);
+  req.open("GET", "decodedmpfile.php?id=" + id + "&dmpFile=" +
+    dmpFile + "&symbolsDir=" + symbolsDir);
   req.send();
 }
 </script>
@@ -117,7 +119,8 @@ try
 		time INTEGER,
 		ip TEXT,
 		file TEXT,
-		attachments TEXT)");
+		attachments TEXT,
+		crashLocation TEXT)");
 
 	if(array_key_exists("id", $_GET))
 	{
@@ -135,11 +138,11 @@ try
 			$dmpFile = $row['file'];
 			$os = $row['os'];
 
-			$onLoad = "decodeDmpFile('$dmpFile', '$symbolsDir');";
+			$onLoad = "decodeDmpFile($id, '$dmpFile', '$symbolsDir');";
 
 			# If it's a Windows crash report, try and download MS symbols
 			if(strpos($os, "windows") !== false)
-				$onLoad = "updateSymbols('$dmpFile', '$symbolsDir'); " . $onLoad;
+				$onLoad = "updateSymbols($id, '$dmpFile', '$symbolsDir'); " . $onLoad;
 
 			echo "<body onLoad=\"$onLoad\">";
 			echo "<table>\n";
@@ -205,13 +208,13 @@ try
 		{
 			switch($key)
 			{
-				case "email":		$email = $value; break;
-				case "text":		$text = $value; break;
-				case "product":		$product = $value; break;
-				case "version":		$version = $value; break;
-				case "os":		$os = $value; break;
-				case "gl":		$gl = $value; break;
-				case "checksum":	$checksum = $value; break;
+				case "email":     $email = $value; break;
+				case "text":      $text = $value; break;
+				case "product":   $product = $value; break;
+				case "version":   $version = $value; break;
+				case "os":        $os = $value; break;
+				case "gl":        $gl = $value; break;
+				case "checksum":  $checksum = $value; break;
 			}
 		}
 
@@ -292,11 +295,12 @@ try
 		echo "<th>Email</th>";
 		echo "<th>Product</th>";
 		echo "<th>Description</th>";
+		echo "<th>Location</th>";
 		echo "<th>Time</th>";
 
 		echo "</tr>";
 
-		$select = "SELECT id, email, text, product, version, time FROM reports " .
+		$select = "SELECT id, email, text, product, version, crashLocation, time FROM reports " .
 			"ORDER BY time DESC";
 		$statement = $db->prepare($select);
 		$statement->execute();
@@ -309,6 +313,7 @@ try
 			$htmlProduct = rawurlencode($product);
 			$text = $row['text'];
 			$time = $row['time'];
+			$crashLocation = $row['crashLocation'];
 
 			echo "<tr onclick=\"window.location='?id=$id';\">";
 
@@ -317,6 +322,7 @@ try
 			echo "</td>";
 			echo "<td>$product</td>";
 			echo "<td class=\"fillWidth\">$text</td>";
+			echo "<td>$crashLocation</td>";
 			echo "<td>" . date("H:i d-m-Y", $time) . "</td>";
 
 			echo "</tr>";
